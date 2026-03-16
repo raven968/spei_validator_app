@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D1B2A"/>
+      <stop offset="100%" stop-color="#1B2838"/>
+    </linearGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bgGrad)"/>
+
+  <!-- Shield outline -->
+  <path d="M256 72 L416 140 L416 260 C416 348 348 412 256 440 C164 412 96 348 96 260 L96 140 Z"
+        fill="none" stroke="url(#shieldGrad)" stroke-width="22" stroke-linejoin="round"/>
+
+  <!-- Checkmark inside shield -->
+  <polyline points="180,258 232,310 336,206"
+            fill="none" stroke="#00E676" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Transfer arrow (bottom-left, representing money flow) -->
+  <g transform="translate(108, 340)">
+    <path d="M0,20 L50,20 L50,0 L80,28 L50,56 L50,36 L0,36 Z"
+          fill="#00E676" opacity="0.7"/>
+  </g>
+</svg>

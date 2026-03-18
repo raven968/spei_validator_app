@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/subscription_service.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import 'subscription_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,9 +41,19 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       if (!mounted) return;
+
+      Widget nextScreen;
+      try {
+        final status = await SubscriptionService.getStatus();
+        nextScreen = status.isActive ? const HomeScreen() : const SubscriptionScreen();
+      } catch (_) {
+        nextScreen = const HomeScreen();
+      }
+
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => nextScreen),
       );
     } catch (e) {
       setState(() {

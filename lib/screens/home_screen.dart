@@ -4,8 +4,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/validation_service.dart';
 import '../models/validation_result.dart';
 import 'login_screen.dart';
+import 'subscription_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -198,6 +200,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _isLoading = false;
       });
       _resultAnimController.forward();
+      // Guardar en historial si el usuario tiene plan Business (silencioso)
+      ValidationService.saveResult(
+        result: result,
+        fechaOperacion: _dateController.text,
+      );
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -253,7 +260,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: Colors.white38, size: 22),
+                    icon: const Icon(Icons.workspace_premium_rounded,
+                        color: Color(0xFF00E676), size: 22),
+                    tooltip: 'Mi subscripción',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const SubscriptionScreen(fromHome: true)),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded,
+                        color: Colors.white38, size: 22),
                     tooltip: 'Cerrar sesión',
                     onPressed: () async {
                       await AuthService.logout();

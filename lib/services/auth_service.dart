@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/env.dart';
 import '../models/user.dart';
 
 class AuthService {
-  // URL del backend FastAPI de autenticación
-  static const String baseUrl = 'http://localhost:8001';
+  static String get baseUrl => Env.apiUrl;
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
 
@@ -61,6 +61,21 @@ class AuthService {
   }
 
   static Future<void> logout() async {
+    final token = await getToken();
+    if (token != null) {
+      try {
+        await http.post(
+          Uri.parse('$baseUrl/auth/logout'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+      } catch (_) {
+        // Si falla el backend igual limpiamos la sesión local
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);

@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../config/env.dart';
 import '../models/validation_result.dart';
 
 class ApiService {
-  // Cambiar a la IP de tu máquina si pruebas desde un dispositivo físico
-  static const String baseUrl = 'http://localhost:8000';
+  static String get baseUrl => Env.scrapperUrl;
 
   static Future<ValidationResult> validateSpei({
     required String fecha,

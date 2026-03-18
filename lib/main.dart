@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/subscription_screen.dart';
 import 'services/auth_service.dart';
+import 'services/subscription_service.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: '.env');
   runApp(const MyApp());
 }
 
@@ -40,18 +44,32 @@ class _AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<_AuthGate> {
-  late Future<bool> _checkAuth;
+  late Future<Widget> _resolve;
 
   @override
   void initState() {
     super.initState();
-    _checkAuth = AuthService.isLoggedIn();
+    _resolve = _resolveStartScreen();
+  }
+
+  Future<Widget> _resolveStartScreen() async {
+    final loggedIn = await AuthService.isLoggedIn();
+    if (!loggedIn) return const LoginScreen();
+
+    try {
+      final status = await SubscriptionService.getStatus();
+      if (status.isActive) return const HomeScreen();
+      return const SubscriptionScreen();
+    } catch (_) {
+      // Si falla la verificación de subscripción, deja pasar al home
+      return const HomeScreen();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _checkAuth,
+    return FutureBuilder<Widget>(
+      future: _resolve,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
@@ -61,7 +79,7 @@ class _AuthGateState extends State<_AuthGate> {
             ),
           );
         }
-        return snapshot.data == true ? const HomeScreen() : const LoginScreen();
+        return snapshot.data!;
       },
     );
   }

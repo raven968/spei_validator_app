@@ -1,25 +1,28 @@
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/env.dart';
 import '../models/user.dart';
 
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+
 class AuthService {
-  static String get baseUrl => Env.apiUrl;
+  String get baseUrl => Env.apiUrl;
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
 
-  static Future<String?> getToken() async {
+  Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
   }
 
-  static Future<bool> isLoggedIn() async {
+  Future<bool> isLoggedIn() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
   }
 
-  static Future<User> login({
+  Future<User> login({
     required String email,
     required String password,
   }) async {
@@ -39,7 +42,7 @@ class AuthService {
     }
   }
 
-  static Future<User> register({
+  Future<User> register({
     required String name,
     required String email,
     required String password,
@@ -60,7 +63,7 @@ class AuthService {
     }
   }
 
-  static Future<void> logout() async {
+  Future<void> logout() async {
     final token = await getToken();
     if (token != null) {
       try {
@@ -72,23 +75,40 @@ class AuthService {
             'Authorization': 'Bearer $token',
           },
         );
-      } catch (_) {
-        // Si falla el backend igual limpiamos la sesión local
-      }
+      } catch (_) {}
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
   }
 
-  static Future<User?> getCurrentUser() async {
+  Future<User?> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString(_userKey);
     if (userJson == null) return null;
     return User.fromJson(jsonDecode(userJson));
   }
 
-  static Future<void> _saveSession(Map<String, dynamic> data) async {
+  Future<void> updateCachedUser(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, jsonEncode({
+      'id': user.id,
+      'name': user.name,
+      'email': user.email,
+      'subscription_status': user.subscriptionStatus,
+    }));
+  }
+
+  Future<Map<String, String>> authHeaders() async {
+    final token = await getToken();
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
+
+  Future<void> _saveSession(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, data['access_token']);
     await prefs.setString(_userKey, jsonEncode(data['user']));

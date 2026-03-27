@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import '../services/subscription_service.dart';
-import 'home_screen.dart';
-import 'register_screen.dart';
-import 'subscription_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
 
@@ -30,41 +27,27 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() => _errorMessage = null);
 
-    try {
-      await AuthService.login(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-      if (!mounted) return;
+    await ref.read(authProvider.notifier).login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
 
-      Widget nextScreen;
-      try {
-        final status = await SubscriptionService.getStatus();
-        nextScreen = status.isActive ? const HomeScreen() : const SubscriptionScreen();
-      } catch (_) {
-        nextScreen = const HomeScreen();
-      }
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => nextScreen),
-      );
-    } catch (e) {
+    final authState = ref.read(authProvider);
+    if (authState.hasError) {
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-        _isLoading = false;
+        _errorMessage =
+            authState.error.toString().replaceFirst('Exception: ', '');
       });
     }
+    // On success, GoRouter redirect handles navigation
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(authProvider).isLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       body: SafeArea(
@@ -116,7 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 48),
 
-                // ── Email ──
                 _buildLabel('Correo electrónico'),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -136,7 +118,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
 
-                // ── Password ──
                 _buildLabel('Contraseña'),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -154,7 +135,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white38,
                         size: 20,
                       ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   validator: (v) {
@@ -166,7 +148,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 24),
 
-                // ── Error ──
                 if (_errorMessage != null) ...[
                   Container(
                     width: double.infinity,
@@ -174,17 +155,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: BoxDecoration(
                       color: Colors.red.shade900.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade700.withValues(alpha: 0.4)),
+                      border: Border.all(
+                          color: Colors.red.shade700.withValues(alpha: 0.4)),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.error_outline_rounded, color: Colors.red.shade300, size: 18),
+                        Icon(Icons.error_outline_rounded,
+                            color: Colors.red.shade300, size: 18),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red.shade200, fontSize: 13),
-                          ),
+                          child: Text(_errorMessage!,
+                              style: TextStyle(
+                                  color: Colors.red.shade200, fontSize: 13)),
                         ),
                       ],
                     ),
@@ -192,47 +174,37 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
                 ],
 
-                // ── Login Button ──
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
+                    onPressed: isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00E676),
                       foregroundColor: const Color(0xFF0D1B2A),
-                      disabledBackgroundColor: const Color(0xFF00E676).withValues(alpha: 0.3),
+                      disabledBackgroundColor:
+                          const Color(0xFF00E676).withValues(alpha: 0.3),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                          borderRadius: BorderRadius.circular(14)),
                       textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
+                          fontSize: 16, fontWeight: FontWeight.w700),
                     ),
-                    child: _isLoading
+                    child: isLoading
                         ? const SizedBox(
                             width: 22,
                             height: 22,
                             child: CircularProgressIndicator(
-                              color: Color(0xFF0D1B2A),
-                              strokeWidth: 2.5,
-                            ),
-                          )
+                                color: Color(0xFF0D1B2A), strokeWidth: 2.5))
                         : const Text('Iniciar Sesión'),
                   ),
                 ),
 
                 const SizedBox(height: 24),
 
-                // ── Register Link ──
                 Center(
                   child: GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                    ),
+                    onTap: () => context.push('/register'),
                     child: RichText(
                       text: const TextSpan(
                         text: '¿No tienes cuenta? ',
@@ -282,7 +254,8 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.only(left: 12, right: 8),
         child: Icon(icon, color: const Color(0xFF00E676), size: 20),
       ),
-      prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+      prefixIconConstraints:
+          const BoxConstraints(minWidth: 0, minHeight: 0),
       suffixIcon: suffix,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -305,7 +278,8 @@ class _LoginScreenState extends State<LoginScreen> {
         borderSide: BorderSide(color: Colors.red.shade500, width: 1.5),
       ),
       errorStyle: TextStyle(color: Colors.red.shade300, fontSize: 12),
-      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      contentPadding:
+          const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
     );
   }
 }

@@ -1,24 +1,24 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../config/env.dart';
 import '../models/validation_result.dart';
 
-class ApiService {
-  static String get baseUrl => Env.scrapperUrl;
+final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
 
-  static Future<ValidationResult> validateSpei({
+class ApiService {
+  String get baseUrl => Env.scrapperUrl;
+
+  Future<ValidationResult> validateSpei({
     required String fecha,
     required File imageFile,
   }) async {
     final uri = Uri.parse('$baseUrl/api/v1/validate');
-
     final request = http.MultipartRequest('POST', uri);
 
-    // Form field: fecha_operacion
     request.fields['fecha_operacion'] = fecha;
 
-    // File field: file
     final fileStream = http.MultipartFile.fromBytes(
       'file',
       await imageFile.readAsBytes(),

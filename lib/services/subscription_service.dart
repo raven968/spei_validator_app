@@ -1,24 +1,24 @@
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../config/env.dart';
 import '../models/plan.dart';
 import '../models/subscription_status.dart';
 import 'auth_service.dart';
 
+final subscriptionServiceProvider = Provider<SubscriptionService>((ref) {
+  return SubscriptionService(ref.watch(authServiceProvider));
+});
+
 class SubscriptionService {
-  static String get _baseUrl => Env.apiUrl;
+  final AuthService _authService;
 
-  static Future<Map<String, String>> _authHeaders() async {
-    final token = await AuthService.getToken();
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-  }
+  SubscriptionService(this._authService);
 
-  static Future<List<Plan>> getPlans() async {
-    final token = await AuthService.getToken();
+  String get _baseUrl => Env.apiUrl;
+
+  Future<List<Plan>> getPlans() async {
+    final token = await _authService.getToken();
     final response = await http.get(
       Uri.parse('$_baseUrl/plans'),
       headers: {
@@ -34,10 +34,10 @@ class SubscriptionService {
     throw Exception('Error al obtener planes');
   }
 
-  static Future<SubscriptionStatus> getStatus() async {
+  Future<SubscriptionStatus> getStatus() async {
     final response = await http.get(
       Uri.parse('$_baseUrl/subscription/status'),
-      headers: await _authHeaders(),
+      headers: await _authService.authHeaders(),
     );
 
     if (response.statusCode == 200) {
@@ -48,14 +48,14 @@ class SubscriptionService {
     throw Exception('Error al obtener estado de subscripción');
   }
 
-  static Future<String> createCheckout({
+  Future<String> createCheckout({
     required String planSlug,
     required String successUrl,
     required String cancelUrl,
   }) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/subscription/checkout'),
-      headers: await _authHeaders(),
+      headers: await _authService.authHeaders(),
       body: jsonEncode({
         'plan_slug': planSlug,
         'success_url': successUrl,
@@ -71,10 +71,10 @@ class SubscriptionService {
     throw Exception(error['detail'] ?? 'Error al iniciar pago');
   }
 
-  static Future<String> getBillingPortalUrl({required String returnUrl}) async {
+  Future<String> getBillingPortalUrl({required String returnUrl}) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/subscription/portal'),
-      headers: await _authHeaders(),
+      headers: await _authService.authHeaders(),
       body: jsonEncode({'return_url': returnUrl}),
     );
 
@@ -85,10 +85,10 @@ class SubscriptionService {
     throw Exception('Error al abrir portal de facturación');
   }
 
-  static Future<void> cancel() async {
+  Future<void> cancel() async {
     final response = await http.post(
       Uri.parse('$_baseUrl/subscription/cancel'),
-      headers: await _authHeaders(),
+      headers: await _authService.authHeaders(),
     );
 
     if (response.statusCode != 200) {
@@ -97,10 +97,10 @@ class SubscriptionService {
     }
   }
 
-  static Future<void> resume() async {
+  Future<void> resume() async {
     final response = await http.post(
       Uri.parse('$_baseUrl/subscription/resume'),
-      headers: await _authHeaders(),
+      headers: await _authService.authHeaders(),
     );
 
     if (response.statusCode != 200) {

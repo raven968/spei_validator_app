@@ -1,64 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/env.dart';
 import '../models/plan.dart';
-import '../models/subscription_status.dart';
-import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../services/subscription_service.dart';
-import 'home_screen.dart';
-import 'login_screen.dart';
 
-class SubscriptionScreen extends StatefulWidget {
+class SubscriptionScreen extends ConsumerStatefulWidget {
   final bool fromHome;
   const SubscriptionScreen({super.key, this.fromHome = false});
 
   @override
-  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+  ConsumerState<SubscriptionScreen> createState() =>
+      _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  SubscriptionStatus? _status;
-  List<Plan> _plans = [];
-  bool _loadingStatus = true;
+class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   bool _loadingCheckout = false;
   String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loadingStatus = true;
-      _error = null;
-    });
-
-    // Cargamos por separado para que un error en uno no bloquee al otro
-    SubscriptionStatus? status;
-    List<Plan> plans = _plans; // conserva los que ya había
-    String? error;
-
-    try {
-      status = await SubscriptionService.getStatus();
-    } catch (e) {
-      error = e.toString().replaceFirst('Exception: ', '');
-    }
-
-    try {
-      plans = await SubscriptionService.getPlans();
-    } catch (e) {
-      error ??= e.toString().replaceFirst('Exception: ', '');
-    }
-
-    setState(() {
-      _status = status;
-      _plans = plans;
-      _error = error;
-      _loadingStatus = false;
-    });
-  }
 
   Future<void> _startCheckout(Plan plan) async {
     setState(() {
@@ -67,13 +28,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     });
 
     try {
-      final checkoutUrl = await SubscriptionService.createCheckout(
+      final service = ref.read(subscriptionServiceProvider);
+      final checkoutUrl = await service.createCheckout(
         planSlug: plan.slug,
-        successUrl: '${Env.apiUrl}/up?subscribed=true',
-        cancelUrl: '${Env.apiUrl}/up?subscribed=false',
+        successUrl: 'speivalidator://payment-return?subscribed=true',
+        cancelUrl: 'speivalidator://payment-return?subscribed=false',
       );
-
-      await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(checkoutUrl),
+          mode: LaunchMode.externalApplication);
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       setState(() => _error = msg);
@@ -83,7 +45,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             content: Text(msg),
             backgroundColor: Colors.red.shade800,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -93,58 +56,45 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _verifyPayment() async {
-    setState(() {
-      _loadingStatus = true;
-      _error = null;
-    });
-    try {
-      final status = await SubscriptionService.getStatus();
-      if (!mounted) return;
-      if (status.isActive) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (_) => false,
-        );
-        return;
-      }
-      setState(() {
-        _status = status;
-        _loadingStatus = false;
-        _error = 'No encontramos una subscripción activa. ¿Ya completaste el pago?';
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
-        _loadingStatus = false;
-      });
-    }
-  }
-
-  Future<void> _logout() async {
-    await AuthService.logout();
+    await ref.read(subscriptionProvider.notifier).refresh();
+    final status = ref.read(subscriptionProvider).valueOrNull;
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    if (status != null && status.isActive) {
+      context.go('/');
+      return;
+    }
+    setState(() {
+      _error =
+          'No encontramos una subscripción activa. ¿Ya completaste el pago?';
+    });
   }
 
   Future<void> _openPortal() async {
     try {
-      final url = await SubscriptionService.getBillingPortalUrl(
+      final service = ref.read(subscriptionServiceProvider);
+      final url = await service.getBillingPortalUrl(
         returnUrl: '${Env.apiUrl}/up',
       );
-      final uri = Uri.parse(url);
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      setState(
+          () => _error = e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  Future<void> _logout() async {
+    await ref.read(authProvider.notifier).logout();
+    // GoRouter redirect handles navigation
   }
 
   @override
   Widget build(BuildContext context) {
+    final statusAsync = ref.watch(subscriptionProvider);
+    final plansAsync = ref.watch(plansProvider);
+    final isLoading = statusAsync.isLoading;
+    final status = statusAsync.valueOrNull;
+    final plans = plansAsync.valueOrNull ?? [];
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: widget.fromHome
@@ -154,24 +104,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: Colors.white70, size: 20),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => context.pop(),
               ),
               title: const Text('Subscripción',
                   style: TextStyle(color: Colors.white, fontSize: 18)),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded,
-                      color: Colors.white38, size: 22),
-                  tooltip: 'Cerrar sesión',
-                  onPressed: _logout,
-                ),
-              ],
             )
           : null,
       body: SafeArea(
-        child: _loadingStatus
+        child: isLoading
             ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF00E676)))
+                child:
+                    CircularProgressIndicator(color: Color(0xFF00E676)))
             : SingleChildScrollView(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -208,33 +151,25 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       const SizedBox(height: 36),
                     ],
 
-                    // ── Contenido principal ──
-                    if (_status != null && _status!.subscribed)
+                    if (status != null && status.subscribed)
                       _buildActiveSubscriptionCard()
-                    else if (_plans.isEmpty)
+                    else if (plans.isEmpty)
                       _buildEmptyPlans()
                     else
-                      ..._plans.map((plan) => _buildPlanCard(plan)),
+                      ...plans.map((plan) => _buildPlanCard(plan)),
 
-                    // ── Error ──
                     if (_error != null) ...[
                       const SizedBox(height: 20),
                       _buildErrorCard(_error!),
                     ],
 
-                    // ── Continuar si ya está suscrito ──
-                    if (_status != null && _status!.subscribed) ...[
+                    if (status != null && status.subscribed) ...[
                       const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const HomeScreen()),
-                            (_) => false,
-                          ),
+                          onPressed: () => context.go('/'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF00E676),
                             foregroundColor: const Color(0xFF0D1B2A),
@@ -251,8 +186,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
                     const SizedBox(height: 32),
 
-                    // ── Verificar pago ──
-                    if (!(_status?.subscribed ?? false))
+                    if (!(status?.subscribed ?? false))
                       Center(
                         child: TextButton.icon(
                           onPressed: _verifyPayment,
@@ -290,7 +224,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: const Color(0xFF00E676).withValues(alpha: 0.25), width: 1.5),
+            color: const Color(0xFF00E676).withValues(alpha: 0.25),
+            width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -298,7 +233,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFF00E676).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
@@ -332,7 +268,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               width: double.infinity,
               height: 54,
               child: ElevatedButton(
-                onPressed: _loadingCheckout ? null : () => _startCheckout(plan),
+                onPressed:
+                    _loadingCheckout ? null : () => _startCheckout(plan),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00E676),
                   foregroundColor: const Color(0xFF0D1B2A),
@@ -360,7 +297,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildActiveSubscriptionCard() {
-    final cancelled = _status?.cancelled ?? false;
+    final status = ref.read(subscriptionProvider).valueOrNull;
+    final cancelled = status?.cancelled ?? false;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -379,7 +317,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           Row(
             children: [
               Icon(
-                cancelled ? Icons.warning_amber_rounded : Icons.verified_rounded,
+                cancelled
+                    ? Icons.warning_amber_rounded
+                    : Icons.verified_rounded,
                 color: cancelled ? Colors.orange : const Color(0xFF00E676),
                 size: 22,
               ),
@@ -387,17 +327,18 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               Text(
                 cancelled ? 'Subscripción cancelada' : 'Plan activo',
                 style: TextStyle(
-                  color: cancelled ? Colors.orange : const Color(0xFF00E676),
+                  color:
+                      cancelled ? Colors.orange : const Color(0xFF00E676),
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          if (cancelled && _status?.endsAt != null) ...[
+          if (cancelled && status?.endsAt != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Tu acceso termina el ${_status!.endsAt!.split('T').first}',
+              'Tu acceso termina el ${status!.endsAt!.split('T').first}',
               style: const TextStyle(color: Colors.white54, fontSize: 13),
             ),
           ],
@@ -432,7 +373,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           const SizedBox(width: 10),
           Expanded(
               child: Text(text,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14))),
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 14))),
         ],
       ),
     );
@@ -449,7 +391,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.cloud_off_rounded, color: Colors.white24, size: 40),
+          const Icon(Icons.cloud_off_rounded,
+              color: Colors.white24, size: 40),
           const SizedBox(height: 14),
           const Text(
             'No se pudieron cargar los planes',
@@ -458,7 +401,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: _load,
+            onPressed: () {
+              ref.invalidate(plansProvider);
+              ref.read(subscriptionProvider.notifier).refresh();
+            },
             child: const Text('Reintentar',
                 style: TextStyle(color: Color(0xFF00E676))),
           ),
@@ -478,11 +424,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline_rounded, color: Colors.red.shade300, size: 18),
+          Icon(Icons.error_outline_rounded,
+              color: Colors.red.shade300, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(message,
-                style: TextStyle(color: Colors.red.shade200, fontSize: 13)),
+                style:
+                    TextStyle(color: Colors.red.shade200, fontSize: 13)),
           ),
         ],
       ),

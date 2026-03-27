@@ -13,44 +13,60 @@ class PaymentReturnScreen extends ConsumerStatefulWidget {
 }
 
 class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
+  String _statusText = 'Verificando pago...';
+
   @override
   void initState() {
     super.initState();
     if (widget.subscribed) {
-      _verifyAndRedirect();
+      _verifyWithRetry();
     } else {
-      // Cancelled — go back to subscription selection
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/subscription');
       });
     }
   }
 
-  Future<void> _verifyAndRedirect() async {
-    await ref.read(subscriptionProvider.notifier).refresh();
-    if (!mounted) return;
+  /// Reintenta verificar la suscripción hasta 3 veces.
+  /// Stripe puede tardar unos segundos en procesar el webhook.
+  Future<void> _verifyWithRetry() async {
+    const maxAttempts = 3;
+    const delayBetween = Duration(seconds: 3);
 
-    final status = ref.read(subscriptionProvider).valueOrNull;
-    if (status != null && status.isActive) {
-      context.go('/');
-    } else {
-      context.go('/subscription');
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (!mounted) return;
+
+      await ref.read(subscriptionProvider.notifier).refresh();
+      final status = ref.read(subscriptionProvider).valueOrNull;
+
+      if (status != null && status.isActive) {
+        if (mounted) context.go('/');
+        return;
+      }
+
+      if (attempt < maxAttempts) {
+        setState(() => _statusText = 'Confirmando con Stripe... (intento $attempt/$maxAttempts)');
+        await Future.delayed(delayBetween);
+      }
     }
+
+    // Si después de 3 intentos no se confirma, ir a suscripción
+    if (mounted) context.go('/subscription');
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFF0D1B2A),
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D1B2A),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Color(0xFF00E676)),
-            SizedBox(height: 20),
+            const CircularProgressIndicator(color: Color(0xFF00E676)),
+            const SizedBox(height: 20),
             Text(
-              'Verificando pago...',
-              style: TextStyle(color: Colors.white54, fontSize: 15),
+              _statusText,
+              style: const TextStyle(color: Colors.white54, fontSize: 15),
             ),
           ],
         ),

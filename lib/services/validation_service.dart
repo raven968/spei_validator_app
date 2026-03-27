@@ -1,50 +1,65 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import '../config/env.dart';
 import '../models/validation_result.dart';
-import 'auth_service.dart';
+import 'http_client.dart';
 
 final validationServiceProvider = Provider<ValidationService>((ref) {
-  return ValidationService(ref.watch(authServiceProvider));
+  return ValidationService(ref.watch(apiClientProvider));
 });
 
 class ValidationService {
-  final AuthService _authService;
+  final ApiClient _client;
 
-  ValidationService(this._authService);
+  ValidationService(this._client);
 
-  String get _baseUrl => Env.apiUrl;
-
-  Future<void> saveResult({
-    required ValidationResult result,
-    required String fechaOperacion,
+  /// Envía imagen + fecha al API de Laravel, que valida suscripción,
+  /// proxy al scraper, guarda historial y devuelve el resultado.
+  Future<ValidationResult> validateSpei({
+    required String fecha,
+    required File imageFile,
   }) async {
-    try {
-      await http.post(
-        Uri.parse('$_baseUrl/validations'),
-        headers: await _authService.authHeaders(),
-        body: jsonEncode({
-          'is_valid_format': result.isValidFormat,
-          'issues': result.issues,
-          'extracted_data': result.extractedData,
-          'banxico_status': result.banxicoStatus,
-          'fecha_operacion': fechaOperacion,
-        }),
+    final response = await _client.postMultipart(
+      '/validations/validate',
+      fields: {'fecha_operacion': fecha},
+      files: [
+        http.MultipartFile.fromBytes(
+          'file',
+          await imageFile.readAsBytes(),
+          filename: imageFile.path.split('/').last,
+        ),
+      ],
+    );
+
+    if (response.statusCode == 200) {
+      return ValidationResult.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
       );
-    } catch (_) {}
+    }
+
+    throw Exception(_parseError(response.body, response.statusCode));
   }
 
+  /// Obtiene el historial de validaciones del usuario.
   Future<List<Map<String, dynamic>>> getHistory() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/validations'),
-      headers: await _authService.authHeaders(),
-    );
+    final response = await _client.get('/validations');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return List<Map<String, dynamic>>.from(data['data'] ?? []);
     }
     throw Exception('Error al obtener historial');
+  }
+
+  String _parseError(String body, int statusCode) {
+    try {
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      return json['detail']?.toString() ??
+          json['message']?.toString() ??
+          'Error del servidor ($statusCode)';
+    } catch (_) {
+      return 'Error del servidor ($statusCode)';
+    }
   }
 }

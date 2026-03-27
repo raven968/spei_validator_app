@@ -141,7 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Ingresa tu contraseña';
-                    if (v.length < 6) return 'Mínimo 6 caracteres';
+                    if (v.length < 8) return 'Mínimo 8 caracteres';
                     return null;
                   },
                 ),

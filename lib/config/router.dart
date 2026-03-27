@@ -10,18 +10,35 @@ import '../screens/history_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/payment_return_screen.dart';
 
+/// Convierte un Riverpod provider en un ChangeNotifier que GoRouter
+/// puede escuchar via refreshListenable, sin recrear el router.
+class _AuthNotifier extends ChangeNotifier {
+  _AuthNotifier(Ref ref) {
+    ref.listen(authProvider, (_, _) => notifyListeners());
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final authNotifier = _AuthNotifier(ref);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: authNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
+
+      // Mientras carga auth, no redirigir (preserva deep links)
       if (authState.isLoading) return null;
 
-      final user = authState.valueOrNull;
-      final isLoggedIn = user != null;
+      final isLoggedIn = authState.valueOrNull != null;
       final loc = state.matchedLocation;
       final isAuthRoute = loc == '/login' || loc == '/register';
+
+      // Permitir /payment-return sin importar auth state,
+      // ya que el usuario puede venir de un deep link post-checkout
+      if (loc == '/payment-return') {
+        return isLoggedIn ? null : '/login';
+      }
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
       if (isLoggedIn && isAuthRoute) return '/';

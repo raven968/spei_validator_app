@@ -5,22 +5,26 @@ import '../config/env.dart';
 import '../models/plan.dart';
 import '../models/subscription_status.dart';
 import 'auth_service.dart';
+import 'http_client.dart';
 
 final subscriptionServiceProvider = Provider<SubscriptionService>((ref) {
-  return SubscriptionService(ref.watch(authServiceProvider));
+  return SubscriptionService(
+    ref.watch(apiClientProvider),
+    ref.watch(authServiceProvider),
+  );
 });
 
 class SubscriptionService {
+  final ApiClient _client;
   final AuthService _authService;
 
-  SubscriptionService(this._authService);
+  SubscriptionService(this._client, this._authService);
 
-  String get _baseUrl => Env.apiUrl;
-
+  /// Obtiene los planes disponibles (no requiere auth obligatorio).
   Future<List<Plan>> getPlans() async {
     final token = await _authService.getToken();
     final response = await http.get(
-      Uri.parse('$_baseUrl/plans'),
+      Uri.parse('${Env.apiUrl}/plans'),
       headers: {
         'Accept': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
@@ -34,11 +38,9 @@ class SubscriptionService {
     throw Exception('Error al obtener planes');
   }
 
+  /// Obtiene el estado de suscripción del usuario.
   Future<SubscriptionStatus> getStatus() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/subscription/status'),
-      headers: await _authService.authHeaders(),
-    );
+    final response = await _client.get('/subscription/status');
 
     if (response.statusCode == 200) {
       return SubscriptionStatus.fromJson(
@@ -48,20 +50,17 @@ class SubscriptionService {
     throw Exception('Error al obtener estado de subscripción');
   }
 
+  /// Crea una sesión de checkout en Stripe.
   Future<String> createCheckout({
     required String planSlug,
     required String successUrl,
     required String cancelUrl,
   }) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/subscription/checkout'),
-      headers: await _authService.authHeaders(),
-      body: jsonEncode({
-        'plan_slug': planSlug,
-        'success_url': successUrl,
-        'cancel_url': cancelUrl,
-      }),
-    );
+    final response = await _client.post('/subscription/checkout', body: {
+      'plan_slug': planSlug,
+      'success_url': successUrl,
+      'cancel_url': cancelUrl,
+    });
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -71,12 +70,11 @@ class SubscriptionService {
     throw Exception(error['detail'] ?? 'Error al iniciar pago');
   }
 
+  /// Obtiene la URL del portal de facturación de Stripe.
   Future<String> getBillingPortalUrl({required String returnUrl}) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/subscription/portal'),
-      headers: await _authService.authHeaders(),
-      body: jsonEncode({'return_url': returnUrl}),
-    );
+    final response = await _client.post('/subscription/portal', body: {
+      'return_url': returnUrl,
+    });
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -85,11 +83,9 @@ class SubscriptionService {
     throw Exception('Error al abrir portal de facturación');
   }
 
+  /// Cancela la suscripción activa.
   Future<void> cancel() async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/subscription/cancel'),
-      headers: await _authService.authHeaders(),
-    );
+    final response = await _client.post('/subscription/cancel');
 
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);
@@ -97,11 +93,9 @@ class SubscriptionService {
     }
   }
 
+  /// Reanuda una suscripción cancelada.
   Future<void> resume() async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/subscription/resume'),
-      headers: await _authService.authHeaders(),
-    );
+    final response = await _client.post('/subscription/resume');
 
     if (response.statusCode != 200) {
       final error = jsonDecode(response.body);

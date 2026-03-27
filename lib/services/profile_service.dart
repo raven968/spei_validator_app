@@ -1,26 +1,25 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import '../config/env.dart';
 import '../models/user.dart';
 import 'auth_service.dart';
+import 'http_client.dart';
 
 final profileServiceProvider = Provider<ProfileService>((ref) {
-  return ProfileService(ref.watch(authServiceProvider));
+  return ProfileService(
+    ref.watch(apiClientProvider),
+    ref.watch(authServiceProvider),
+  );
 });
 
 class ProfileService {
+  final ApiClient _client;
   final AuthService _authService;
 
-  ProfileService(this._authService);
+  ProfileService(this._client, this._authService);
 
-  String get _baseUrl => Env.apiUrl;
-
+  /// Obtiene el perfil del usuario autenticado.
   Future<User> getProfile() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/auth/me'),
-      headers: await _authService.authHeaders(),
-    );
+    final response = await _client.get('/auth/me');
 
     if (response.statusCode == 200) {
       return User.fromJson(jsonDecode(response.body));
@@ -28,6 +27,7 @@ class ProfileService {
     throw Exception('Error al obtener perfil');
   }
 
+  /// Actualiza nombre y/o contraseña del usuario.
   Future<User> updateProfile({
     String? name,
     String? password,
@@ -36,11 +36,7 @@ class ProfileService {
     if (name != null) body['name'] = name;
     if (password != null) body['password'] = password;
 
-    final response = await http.put(
-      Uri.parse('$_baseUrl/auth/profile'),
-      headers: await _authService.authHeaders(),
-      body: jsonEncode(body),
-    );
+    final response = await _client.put('/auth/profile', body: body);
 
     if (response.statusCode == 200) {
       final user = User.fromJson(jsonDecode(response.body));

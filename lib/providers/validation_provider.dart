@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/validation_result.dart';
-import '../services/api_service.dart';
 import '../services/validation_service.dart';
 
 class ValidationState {
@@ -63,17 +62,11 @@ class ValidationNotifier extends Notifier<ValidationState> {
         isLoading: true, clearResult: true, clearError: true);
 
     try {
-      final result = await ref.read(apiServiceProvider).validateSpei(
+      final result = await ref.read(validationServiceProvider).validateSpei(
             fecha: state.date,
             imageFile: state.selectedImage!,
           );
       state = state.copyWith(result: result, isLoading: false);
-
-      // Fire-and-forget save to history
-      ref.read(validationServiceProvider).saveResult(
-            result: result,
-            fechaOperacion: state.date,
-          );
     } catch (e) {
       state = state.copyWith(
         errorMessage: e.toString().replaceFirst('Exception: ', ''),

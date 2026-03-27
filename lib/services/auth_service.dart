@@ -101,6 +101,7 @@ class AuthService {
 
   Future<Map<String, String>> authHeaders() async {
     final token = await getToken();
+    if (token == null) throw Exception('Sesión expirada. Inicia sesión de nuevo.');
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',

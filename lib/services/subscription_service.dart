@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../config/env.dart';
 import '../models/plan.dart';
 import '../models/subscription_status.dart';
+import 'api_error_parser.dart';
 import 'auth_service.dart';
 import 'http_client.dart';
 
@@ -66,8 +67,7 @@ class SubscriptionService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data['checkout_url'];
     }
-    final error = jsonDecode(response.body);
-    throw Exception(error['detail'] ?? 'Error al iniciar pago');
+    throw Exception(parseApiError(response.body, fallback: 'Error al iniciar pago'));
   }
 
   /// Obtiene la URL del portal de facturación de Stripe.
@@ -88,8 +88,7 @@ class SubscriptionService {
     final response = await _client.post('/subscription/cancel');
 
     if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception(error['detail'] ?? 'Error al cancelar subscripción');
+      throw Exception(parseApiError(response.body, fallback: 'Error al cancelar subscripción'));
     }
   }
 
@@ -98,8 +97,7 @@ class SubscriptionService {
     final response = await _client.post('/subscription/resume');
 
     if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception(error['detail'] ?? 'Error al reanudar subscripción');
+      throw Exception(parseApiError(response.body, fallback: 'Error al reanudar subscripción'));
     }
   }
 }

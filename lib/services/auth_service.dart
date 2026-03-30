@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/env.dart';
 import '../models/user.dart';
+import 'api_error_parser.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
@@ -37,8 +38,7 @@ class AuthService {
       await _saveSession(data);
       return User.fromJson(data['user']);
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['detail'] ?? 'Error al iniciar sesión');
+      throw Exception(parseApiError(response.body, fallback: 'Error al iniciar sesión'));
     }
   }
 
@@ -58,9 +58,60 @@ class AuthService {
       await _saveSession(data);
       return User.fromJson(data['user']);
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['detail'] ?? 'Error al crear cuenta');
+      throw Exception(parseApiError(response.body, fallback: 'Error al crear cuenta'));
     }
+  }
+
+  Future<String> forgotPassword({required String email}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['message'] ?? 'Revisa tu correo electrónico.';
+    }
+    throw Exception(parseApiError(response.body, fallback: 'Error al enviar correo'));
+  }
+
+  Future<String> resetPassword({
+    required String token,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/reset-password'),
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      body: jsonEncode({
+        'token': token,
+        'email': email,
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['message'] ?? 'Contraseña restablecida.';
+    }
+    throw Exception(parseApiError(response.body, fallback: 'Error al restablecer contraseña'));
+  }
+
+  Future<String> resendVerification() async {
+    final headers = await authHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/email/resend'),
+      headers: headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['message'] ?? 'Enlace enviado.';
+    }
+    throw Exception(parseApiError(response.body, fallback: 'Error al reenviar verificación'));
   }
 
   Future<void> logout() async {
@@ -96,6 +147,7 @@ class AuthService {
       'name': user.name,
       'email': user.email,
       'subscription_status': user.subscriptionStatus,
+      'email_verified_at': user.emailVerified ? 'verified' : null,
     }));
   }
 

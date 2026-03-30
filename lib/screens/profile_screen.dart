@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
+import '../widgets/app_input_decoration.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -146,8 +147,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       controller: _nameController,
                       style: const TextStyle(
                           color: Colors.white, fontSize: 15),
-                      decoration: _inputDecoration(
-                        hint: 'Tu nombre',
+                      decoration: appInputDecoration(
+                        hintText: 'Tu nombre',
                         icon: Icons.person_outline_rounded,
                       ),
                       validator: (v) {
@@ -170,8 +171,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       obscureText: _obscurePassword,
                       style: const TextStyle(
                           color: Colors.white, fontSize: 15),
-                      decoration: _inputDecoration(
-                        hint: 'Nueva contraseña',
+                      decoration: appInputDecoration(
+                        hintText: 'Nueva contraseña',
                         icon: Icons.lock_outline_rounded,
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -198,8 +199,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       obscureText: _obscureConfirm,
                       style: const TextStyle(
                           color: Colors.white, fontSize: 15),
-                      decoration: _inputDecoration(
-                        hint: 'Confirmar contraseña',
+                      decoration: appInputDecoration(
+                        hintText: 'Confirmar contraseña',
                         icon: Icons.lock_outline_rounded,
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -266,49 +267,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData icon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      filled: true,
-      fillColor: const Color(0xFF1B2838),
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white24, fontSize: 14),
-      prefixIcon: Padding(
-        padding: const EdgeInsets.only(left: 12, right: 8),
-        child: Icon(icon, color: const Color(0xFF00E676), size: 20),
-      ),
-      prefixIconConstraints:
-          const BoxConstraints(minWidth: 0, minHeight: 0),
-      suffixIcon: suffixIcon,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: Color(0xFF2A3F55), width: 1),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: Color(0xFF00E676), width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.red.shade400, width: 1),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
-      ),
-      errorStyle: TextStyle(color: Colors.red.shade300, fontSize: 12),
-      contentPadding: const EdgeInsets.symmetric(vertical: 16),
-    );
-  }
 }
 
 class _FieldLabel extends StatelessWidget {

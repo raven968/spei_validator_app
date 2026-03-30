@@ -51,6 +51,10 @@ class ValidationNotifier extends Notifier<ValidationState> {
     );
   }
 
+  void reset() {
+    state = const ValidationState();
+  }
+
   void setDate(String date) {
     state = state.copyWith(date: date);
   }

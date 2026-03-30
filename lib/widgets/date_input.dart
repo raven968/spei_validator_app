@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'app_input_decoration.dart';
 
 class DateInput extends StatelessWidget {
   final TextEditingController controller;
@@ -55,16 +56,8 @@ class DateInput extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w500),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF1B2838),
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.only(left: 12, right: 8),
-                  child: Icon(Icons.calendar_today_rounded,
-                      color: Color(0xFF00E676), size: 20),
-                ),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 0, minHeight: 0),
+              decoration: appInputDecoration(
+                icon: Icons.calendar_today_rounded,
                 suffixIcon: const Padding(
                   padding: EdgeInsets.only(right: 12),
                   child: Icon(Icons.arrow_drop_down_rounded,
@@ -72,16 +65,6 @@ class DateInput extends StatelessWidget {
                 ),
                 suffixIconConstraints:
                     const BoxConstraints(minWidth: 0, minHeight: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                      const BorderSide(color: Color(0xFF2A3F55), width: 1),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
           ),

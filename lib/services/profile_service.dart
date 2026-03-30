@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
+import 'api_error_parser.dart';
 import 'auth_service.dart';
 import 'http_client.dart';
 
@@ -44,7 +45,6 @@ class ProfileService {
       return user;
     }
 
-    final error = jsonDecode(response.body);
-    throw Exception(error['detail'] ?? error['message'] ?? 'Error al actualizar perfil');
+    throw Exception(parseApiError(response.body, fallback: 'Error al actualizar perfil'));
   }
 }

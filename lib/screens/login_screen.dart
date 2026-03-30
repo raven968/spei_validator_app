@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/app_input_decoration.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -105,8 +106,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration(
-                    hint: 'correo@ejemplo.com',
+                  decoration: appInputDecoration(
+                    hintText: 'correo@ejemplo.com',
                     icon: Icons.email_outlined,
                   ),
                   validator: (v) {
@@ -124,10 +125,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration(
-                    hint: '••••••••',
+                  decoration: appInputDecoration(
+                    hintText: '••••••••',
                     icon: Icons.lock_outline_rounded,
-                    suffix: IconButton(
+                    suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_outlined
@@ -146,7 +147,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   },
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push('/forgot-password'),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      '¿Olvidaste tu contraseña?',
+                      style: TextStyle(
+                        color: Color(0xFF448AFF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
                 if (_errorMessage != null) ...[
                   Container(
@@ -240,46 +263,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
 
-  InputDecoration _inputDecoration({
-    required String hint,
-    required IconData icon,
-    Widget? suffix,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white24),
-      filled: true,
-      fillColor: const Color(0xFF1B2838),
-      prefixIcon: Padding(
-        padding: const EdgeInsets.only(left: 12, right: 8),
-        child: Icon(icon, color: const Color(0xFF00E676), size: 20),
-      ),
-      prefixIconConstraints:
-          const BoxConstraints(minWidth: 0, minHeight: 0),
-      suffixIcon: suffix,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF2A3F55), width: 1),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF00E676), width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.red.shade700, width: 1),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.red.shade500, width: 1.5),
-      ),
-      errorStyle: TextStyle(color: Colors.red.shade300, fontSize: 12),
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-    );
-  }
 }

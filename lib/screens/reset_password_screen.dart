@@ -1,81 +1,86 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
 import '../widgets/app_input_decoration.dart';
 
-class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+class ResetPasswordScreen extends ConsumerStatefulWidget {
+  final String token;
+  final String email;
+
+  const ResetPasswordScreen({
+    super.key,
+    required this.token,
+    required this.email,
+  });
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
-  String? _errorMessage;
+  bool _isLoading = false;
+  String? _message;
+  bool _success = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _errorMessage = null);
+    setState(() {
+      _isLoading = true;
+      _message = null;
+    });
 
-    await ref.read(authProvider.notifier).register(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
-
-    final authState = ref.read(authProvider);
-    if (authState.hasError) {
+    try {
+      final msg = await ref.read(authServiceProvider).resetPassword(
+            token: widget.token,
+            email: widget.email,
+            password: _passwordController.text,
+            passwordConfirmation: _confirmController.text,
+          );
       setState(() {
-        _errorMessage =
-            authState.error.toString().replaceFirst('Exception: ', '');
+        _success = true;
+        _message = msg;
       });
+    } catch (e) {
+      setState(() {
+        _success = false;
+        _message = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      setState(() => _isLoading = false);
     }
-    // On success, GoRouter redirect sends to '/' -> subscription check
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(authProvider).isLoading;
-
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: Colors.white70, size: 20),
-          onPressed: () => context.pop(),
-        ),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const SizedBox(height: 40),
+
                 const Text(
-                  'Crear cuenta',
+                  'Nueva contraseña',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -83,46 +88,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Empieza a validar transferencias SPEI',
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                const SizedBox(height: 8),
+                Text(
+                  'Restableciendo para ${widget.email}',
+                  style: const TextStyle(color: Colors.white54, fontSize: 14),
                 ),
 
                 const SizedBox(height: 36),
-
-                _buildLabel('Nombre completo'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: appInputDecoration(
-                      hintText: 'Tu nombre', icon: Icons.person_outline_rounded),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Ingresa tu nombre';
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 20),
-
-                _buildLabel('Correo electrónico'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: appInputDecoration(
-                      hintText: 'correo@ejemplo.com', icon: Icons.email_outlined),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Ingresa tu correo';
-                    if (!v.contains('@')) return 'Correo inválido';
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 20),
 
                 _buildLabel('Contraseña'),
                 const SizedBox(height: 8),
@@ -176,7 +148,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Confirma tu contraseña';
                     if (v != _passwordController.text) {
                       return 'Las contraseñas no coinciden';
                     }
@@ -184,39 +155,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                 ),
 
-                const SizedBox(height: 24),
-
-                if (_errorMessage != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade900.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.red.shade700.withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline_rounded,
-                            color: Colors.red.shade300, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(_errorMessage!,
-                              style: TextStyle(
-                                  color: Colors.red.shade200, fontSize: 13)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                const SizedBox(height: 28),
 
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: isLoading ? null : _register,
+                    onPressed: (_isLoading || _success) ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00E676),
                       foregroundColor: const Color(0xFF0D1B2A),
@@ -228,17 +173,75 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       textStyle: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w700),
                     ),
-                    child: isLoading
+                    child: _isLoading
                         ? const SizedBox(
                             width: 22,
                             height: 22,
                             child: CircularProgressIndicator(
-                                color: Color(0xFF0D1B2A), strokeWidth: 2.5))
-                        : const Text('Crear Cuenta'),
+                                color: Color(0xFF0D1B2A), strokeWidth: 2.5),
+                          )
+                        : const Text('Restablecer contraseña'),
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                if (_message != null) ...[
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: _success
+                          ? const Color(0xFF00E676).withValues(alpha: 0.1)
+                          : Colors.red.shade900.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _success
+                            ? const Color(0xFF00E676).withValues(alpha: 0.3)
+                            : Colors.red.shade700.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _success
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.error_outline_rounded,
+                          color: _success
+                              ? const Color(0xFF00E676)
+                              : Colors.red.shade300,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _message!,
+                            style: TextStyle(
+                              color: _success
+                                  ? const Color(0xFF00E676)
+                                  : Colors.red.shade200,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                if (_success) ...[
+                  const SizedBox(height: 24),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => context.go('/login'),
+                      child: const Text(
+                        'Ir a iniciar sesión',
+                        style: TextStyle(
+                          color: Color(0xFF448AFF),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -256,5 +259,4 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           letterSpacing: 0.5,
         ),
       );
-
 }

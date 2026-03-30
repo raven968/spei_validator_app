@@ -157,7 +157,10 @@ class _ImagePreview extends StatelessWidget {
       borderRadius: BorderRadius.circular(15),
       child: Stack(
         children: [
-          Image.file(image, width: double.infinity, fit: BoxFit.cover),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: Image.file(image, width: double.infinity, fit: BoxFit.cover),
+          ),
           Positioned(
             top: 8,
             right: 8,
@@ -205,6 +208,9 @@ class _ImagePlaceholder extends StatelessWidget {
         const SizedBox(height: 6),
         const Text('Cámara o Galería',
             style: TextStyle(color: Colors.white30, fontSize: 12)),
+        const SizedBox(height: 4),
+        const Text('Máx. 1920px · Calidad 85%',
+            style: TextStyle(color: Colors.white24, fontSize: 11)),
         const SizedBox(height: 30),
       ],
     );

@@ -8,7 +8,10 @@ import '../screens/register_screen.dart';
 import '../screens/subscription_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/forgot_password_screen.dart';
 import '../screens/payment_return_screen.dart';
+import '../screens/reset_password_screen.dart';
+import '../screens/verify_email_screen.dart';
 
 /// Convierte un Riverpod provider en un ChangeNotifier que GoRouter
 /// puede escuchar via refreshListenable, sin recrear el router.
@@ -32,7 +35,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final isLoggedIn = authState.valueOrNull != null;
       final loc = state.matchedLocation;
-      final isAuthRoute = loc == '/login' || loc == '/register';
+      final isAuthRoute = loc == '/login' || loc == '/register' ||
+          loc == '/forgot-password' || loc == '/reset-password';
 
       // Permitir /payment-return sin importar auth state,
       // ya que el usuario puede venir de un deep link post-checkout
@@ -42,6 +46,18 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
       if (isLoggedIn && isAuthRoute) return '/';
+
+      // Redirect unverified users to verify-email screen
+      if (isLoggedIn) {
+        final user = authState.valueOrNull;
+        final isVerified = user?.emailVerified ?? false;
+        final isVerifyRoute = loc == '/verify-email';
+
+        if (!isVerified && !isVerifyRoute && loc != '/payment-return') {
+          return '/verify-email';
+        }
+        if (isVerified && isVerifyRoute) return '/';
+      }
 
       return null;
     },
@@ -53,6 +69,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register',
         builder: (_, _) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          final email = state.uri.queryParameters['email'] ?? '';
+          return ResetPasswordScreen(token: token, email: email);
+        },
+      ),
+      GoRoute(
+        path: '/verify-email',
+        builder: (_, state) {
+          final verifyUrl = state.uri.queryParameters['url'];
+          return VerifyEmailScreen(verifyUrl: verifyUrl);
+        },
       ),
       GoRoute(
         path: '/',

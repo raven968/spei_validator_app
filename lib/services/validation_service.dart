@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/validation_result.dart';
+import 'api_error_parser.dart';
 import 'http_client.dart';
 
 final validationServiceProvider = Provider<ValidationService>((ref) {
@@ -38,7 +39,7 @@ class ValidationService {
       );
     }
 
-    throw Exception(_parseError(response.body, response.statusCode));
+    throw Exception(parseApiError(response.body));
   }
 
   /// Obtiene el historial de validaciones del usuario.
@@ -52,14 +53,4 @@ class ValidationService {
     throw Exception('Error al obtener historial');
   }
 
-  String _parseError(String body, int statusCode) {
-    try {
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      return json['detail']?.toString() ??
-          json['message']?.toString() ??
-          'Error del servidor ($statusCode)';
-    } catch (_) {
-      return 'Error del servidor ($statusCode)';
-    }
-  }
 }

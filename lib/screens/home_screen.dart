@@ -75,6 +75,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     ref.read(validationProvider.notifier).setImage(file);
   }
 
+  Future<void> _onRefresh() async {
+    ref.invalidate(subscriptionProvider);
+    ref.read(validationProvider.notifier).reset();
+    _resultAnimController.reset();
+    final today = DateFormat('dd-MM-yyyy').format(DateTime.now());
+    _dateController.text = today;
+    ref.read(validationProvider.notifier).setDate(today);
+    await ref.read(subscriptionProvider.future);
+  }
+
   Future<void> _validate() async {
     final state = ref.read(validationProvider);
     if (state.selectedImage == null) {
@@ -99,8 +109,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          color: const Color(0xFF00E676),
+          backgroundColor: const Color(0xFF1B2838),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -143,6 +158,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               const SizedBox(height: 40),
             ],
           ),
+        ),
         ),
       ),
     );

@@ -112,9 +112,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           : null,
       body: SafeArea(
         child: isLoading
-            ? const Center(
-                child:
-                    CircularProgressIndicator(color: Color(0xFF00E676)))
+            ? const _SubscriptionSkeleton()
             : SingleChildScrollView(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -433,6 +431,101 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     TextStyle(color: Colors.red.shade200, fontSize: 13)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SubscriptionSkeleton extends StatefulWidget {
+  const _SubscriptionSkeleton();
+
+  @override
+  State<_SubscriptionSkeleton> createState() => _SubscriptionSkeletonState();
+}
+
+class _SubscriptionSkeletonState extends State<_SubscriptionSkeleton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        final opacity = 0.04 + (_animation.value * 0.08);
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+              _bone(180, 28, opacity),
+              const SizedBox(height: 8),
+              _bone(220, 14, opacity),
+              const SizedBox(height: 36),
+              // Plan card skeleton
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: opacity * 0.5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: opacity),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _bone(80, 20, opacity),
+                    const SizedBox(height: 16),
+                    _bone(140, 42, opacity),
+                    const SizedBox(height: 4),
+                    _bone(100, 14, opacity),
+                    const SizedBox(height: 24),
+                    _bone(double.infinity, 14, opacity),
+                    const SizedBox(height: 10),
+                    _bone(double.infinity, 14, opacity),
+                    const SizedBox(height: 10),
+                    _bone(200, 14, opacity),
+                    const SizedBox(height: 28),
+                    _bone(double.infinity, 54, opacity,
+                        borderRadius: 14),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bone(double width, double height, double opacity,
+      {double borderRadius = 8}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: opacity),
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
     );
   }
